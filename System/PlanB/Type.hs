@@ -87,10 +87,19 @@ class HasTemp c where
 
   preserveCorpse :: c
 
+  getTempDir        :: c -> Maybe FilePath
+  getNameTemplate   :: c -> Maybe FilePath
+  getPreserveCorpse :: c -> Bool
+
 instance HasTemp (PbConfig k) where
-  tempDir dir     = mempty { pbcTempDir = Just (toFilePath dir) }
-  nameTemplate nt = mempty { pbcNameTemplate   = Just nt  }
-  preserveCorpse  = mempty { pbcPreserveCorpse = Any True }
+
+  tempDir dir       = mempty { pbcTempDir = Just (toFilePath dir) }
+  nameTemplate nt   = mempty { pbcNameTemplate   = Just nt  }
+  preserveCorpse    = mempty { pbcPreserveCorpse = Any True }
+
+  getTempDir        = pbcTempDir
+  getNameTemplate   = pbcNameTemplate
+  getPreserveCorpse = getAny . pbcPreserveCorpse
 
 -- | The type class includes data types that contain information about what
 -- to do when some object already exists. There are two scenarios currently
@@ -109,6 +118,11 @@ class CanHandleExisting c where
 
   useIfExists :: c
 
+  howHandleExisting :: c -> Maybe AlreadyExistsBehavior
+
 instance CanHandleExisting (PbConfig 'New) where
-  overrideIfExists = mempty { pbcAlreadyExists = Just AebOverride }
-  useIfExists      = mempty { pbcAlreadyExists = Just AebUse      }
+
+  overrideIfExists  = mempty { pbcAlreadyExists = Just AebOverride }
+  useIfExists       = mempty { pbcAlreadyExists = Just AebUse      }
+
+  howHandleExisting = pbcAlreadyExists
