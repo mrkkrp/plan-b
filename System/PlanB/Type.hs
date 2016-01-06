@@ -77,7 +77,7 @@ class HasTemp c where
 
   tempDir :: Path b Dir -> c
 
-  -- | Specify template to use to name temporary file, see
+  -- | Specify template to use to name temporary directory, see
   -- 'System.Directory.openTempFile', default is @\"plan-b\"@.
 
   nameTemplate :: FilePath -> c
