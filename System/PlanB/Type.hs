@@ -51,7 +51,7 @@ data AlreadyExistsBehavior
 
 data PbConfig :: Subject -> * where
   PbConfig ::
-    { pbcTempDir        :: Maybe FilePath
+    { pbcTempDir        :: Maybe (Path Abs Dir)
     , pbcNameTemplate   :: Maybe FilePath
     , pbcPreserveCorpse :: Any
     , pbcAlreadyExists  :: Maybe AlreadyExistsBehavior
@@ -75,7 +75,7 @@ class HasTemp c where
   -- temporary directory. If the directory does not exist, it will be
   -- created, but not deleted.
 
-  tempDir :: Path b Dir -> c
+  tempDir :: Path Abs Dir -> c
 
   -- | Specify template to use to name temporary directory, see
   -- 'System.Directory.openTempFile', default is @\"plan-b\"@.
@@ -87,13 +87,13 @@ class HasTemp c where
 
   preserveCorpse :: c
 
-  getTempDir        :: c -> Maybe FilePath
+  getTempDir        :: c -> Maybe (Path Abs Dir)
   getNameTemplate   :: c -> Maybe FilePath
   getPreserveCorpse :: c -> Bool
 
 instance HasTemp (PbConfig k) where
 
-  tempDir dir       = mempty { pbcTempDir = Just (toFilePath dir) }
+  tempDir dir       = mempty { pbcTempDir        = Just dir }
   nameTemplate nt   = mempty { pbcNameTemplate   = Just nt  }
   preserveCorpse    = mempty { pbcPreserveCorpse = Any True }
 

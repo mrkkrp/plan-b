@@ -32,7 +32,7 @@ module System.PlanB
   , useIfExists )
 where
 
-import Control.Monad (when, unless, liftM2)
+import Control.Monad
 import Control.Monad.Catch
 import Control.Monad.IO.Class (MonadIO (..))
 import Data.Maybe (fromMaybe)
@@ -40,7 +40,10 @@ import Path
 import System.IO.Error
 import System.IO.Temp
 import System.PlanB.Type
-import qualified System.Directory as Dir
+import qualified Path.IO as Dir
+
+----------------------------------------------------------------------------
+-- Operations on files
 
 -- | Create new file. Name of the file is taken as the second argument. The
 -- third argument allows to perform actions (in simplest case just creation
@@ -49,7 +52,7 @@ import qualified System.Directory as Dir
 --
 -- This action throws 'alreadyExistsErrorType' by default instead of
 -- silently overwriting already existing file, use 'overrideIfExists' and
--- 'useIfExists'to change this behavior.
+-- 'useIfExists' to change this behavior.
 
 withNewFile :: (MonadIO m, MonadMask m)
   => PbConfig 'New     -- ^ Configuration
@@ -59,7 +62,7 @@ withNewFile :: (MonadIO m, MonadMask m)
 withNewFile pbc fpath action = withTempDir pbc $ \tdir -> do
   let apath = constructFilePath tdir fpath
   checkExistenceOfFile pbc apath fpath
-  liftM2 const (action apath) (moveFile apath fpath)
+  liftM2 const (action apath) (Dir.renameFile apath fpath)
 
 -- | Edit existing file. Name of the file is taken as the second
 -- argument. The third argument allows to perform actions on temporary copy
@@ -76,7 +79,10 @@ withExistingFile :: (MonadIO m, MonadMask m)
 withExistingFile pbc fpath action = withTempDir pbc $ \tdir -> do
   let apath = constructFilePath tdir fpath
   copyFile fpath apath
-  liftM2 const (action apath) (moveFile apath fpath)
+  liftM2 const (action apath) (Dir.renameFile apath fpath)
+
+----------------------------------------------------------------------------
+-- Operations on directories
 
 -- | Create new directory. Name of the directory is specified as the second
 -- argument. The third argument allows to perform actions in “sandboxed”
@@ -111,47 +117,59 @@ withExistingDir pbc dpath action = withTempDir pbc $ \tdir -> do
   copyDir dpath tdir
   liftM2 const (action tdir) (moveDir tdir dpath)
 
+----------------------------------------------------------------------------
+-- Operations on containers
+
 -- | Create new container file. This is suitable for processing of all sorts
--- of archive-like objects. The first argument tells how to pack directory
--- into a file. The third argument names new file. The fourth argument
--- allows to perform actions knowing name of temporary directory.
+-- of archive-like objects. The first and second arguments specify how to
+-- unpack directory from file and pack it back. The fourth argument names
+-- new file. The fifth argument allows to perform actions knowing name of
+-- temporary directory.
 --
 -- This action throws 'alreadyExistsErrorType' by default instead of
 -- silently overwriting already existing file, see 'overrideIfExists' and
 -- 'useIfExists'to change this behavior.
 
 withNewContainer :: (MonadIO m, MonadMask m)
-  => (Path b File -> Path b Dir -> m ())
+  => (Path Abs File -> Path Abs Dir -> m ())
      -- ^ How to unpack file into specified directory
-  -> (Path b Dir -> Path b File -> m ())
+  -> (Path Abs Dir -> Path b File -> m ())
      -- ^ How to pack specified directory into file
   -> PbConfig 'New     -- ^ Configuration
   -> Path b File       -- ^ Name of container to create
   -> (Path Abs Dir -> m a) -- ^ Given name of temporary directory, do it
   -> m a
-withNewContainer unpack pack pbc fpath action = undefined
--- ↑ TODO packing is easy, where to put unpacking?
+withNewContainer unpack pack pbc fpath action =
+  withTempDir pbc $ \tdir -> do
+    withTempDir pbc $ \udir -> do
+      let apath = constructFilePath udir fpath
+      checkExistenceOfFile pbc apath fpath
+      using <- Dir.doesFileExist apath
+      when using (unpack apath tdir)
+    liftM2 const (action tdir) (pack tdir fpath)
 
 -- | Edit existing container file. This is suitable for processing of all
 -- sorts of archive-like objects. The first and second arguments specify how
--- to unpack directory from file and pack it back. Fourth argument names
--- container file to edit. The last argument allows to perform actions
--- knowing name of temporary directory.
+-- to unpack directory from file and pack it back (overwriting old
+-- version). Fourth argument names container file to edit. The last argument
+-- allows to perform actions knowing name of temporary directory.
 --
 -- This action throws 'doesNotExistErrorType' exception if target file does
 -- not exist.
 
 withExistingContainer :: (MonadIO m, MonadMask m)
-  => (Path b File -> Path b Dir -> m ())
+  => (Path b File -> Path Abs Dir -> m ())
      -- ^ How to unpack file into specified directory
-  -> (Path b Dir -> Path b File -> m ())
+  -> (Path Abs Dir -> Path b File -> m ())
      -- ^ How to pack specified directory into file
   -> PbConfig 'Existing -- ^ Configuration
   -> Path b File       -- ^ Name of container to edit
   -> (Path Abs Dir -> m a) -- ^ Given name of temporary directory, do it
   -> m a
-withExistingContainer unpack pack pbc fpath action = undefined
--- ↑ TODO should be easy
+withExistingContainer unpack pack pbc fpath action =
+  withTempDir pbc $ \tdir -> do
+    unpack fpath tdir
+    liftM2 const (action tdir) (pack tdir fpath)
 
 ----------------------------------------------------------------------------
 -- Helpers
@@ -167,17 +185,15 @@ withTempDir :: (HasTemp c, MonadIO m, MonadMask m)
   -> m a
 withTempDir pbc = bracket make free
   where
-    make = liftIO $ do
-      tsys <- Dir.getTemporaryDirectory
+    make = do
+      tsys <- Dir.getTempDir
       let tdir = fromMaybe tsys (getTempDir pbc)
-      Dir.createDirectoryIfMissing True tdir
+      Dir.createDirIfMissing True tdir
       let ntmp = fromMaybe "plan-b" (getNameTemplate pbc)
-      createTempDirectory tdir ntmp >>= parseAbsDir
-    free = liftIO
-      . unless (getPreserveCorpse pbc)
+      liftIO (createTempDirectory (toFilePath tdir) ntmp) >>= parseAbsDir
+    free = unless (getPreserveCorpse pbc)
       . ignoringIOErrors
-      . Dir.removeDirectoryRecursive
-      . fromAbsDir
+      . Dir.removeDirRecur
 
 -- | Construct name of file combining given directory path and file name
 -- from path to file.
@@ -203,13 +219,17 @@ checkExistenceOfFile :: (CanHandleExisting c, MonadIO m, MonadThrow m)
 checkExistenceOfFile pbc apath fpath = liftIO $ do
   let ffile = toFilePath fpath
       location = "System.PlanB.checkExistenceOfFile"
-  exists <- Dir.doesFileExist ffile
+  -- TODO What to do when a directory with such name exists?
+  exists <- Dir.doesFileExist fpath
   when exists $
     case howHandleExisting pbc of
       Nothing -> throwM $
         mkIOError alreadyExistsErrorType location Nothing (Just ffile)
       Just AebOverride -> return ()
       Just AebUse -> copyFile fpath apath
+
+-- | Check existence of directory and perform actions according to given
+-- configuration. See 'checkExistenceOfFile', overall behavior is the same.
 
 checkExistenceOfDir :: (CanHandleExisting c, MonadIO m, MonadThrow m)
   => c                 -- ^ Configuration
@@ -219,59 +239,65 @@ checkExistenceOfDir :: (CanHandleExisting c, MonadIO m, MonadThrow m)
 checkExistenceOfDir pbc apath dpath = liftIO $ do
   let ddir = toFilePath dpath
       location = "System.PlanB.checkExistenceOfDir"
-  exists <- Dir.doesDirectoryExist ddir
-  when exists undefined -- TODO
-    -- case howHandleExisting pbc of
-    --   Nothing -> throwM $
-    --     mkIOError alreadyExistErrorType location Nothing (Just ddir)
-    --   Just AebOverride ->
+  -- TODO What to do when a file with such name exists?
+  exists <- Dir.doesDirExist dpath
+  when exists $
+    case howHandleExisting pbc of
+      Nothing -> throwM $
+        mkIOError alreadyExistsErrorType location Nothing (Just ddir)
+      Just AebOverride -> return ()
+      Just AebUse -> copyDir dpath apath
 
--- | Move file to new location silently replacing file there, if it already
--- exists.
-
-moveFile :: MonadIO m
-  => Path b0 File      -- ^ Original location
-  -> Path b1 File      -- ^ Where to move
-  -> m ()
-moveFile base dest = liftIO $
-  Dir.renameFile (toFilePath base) (toFilePath dest)
-
--- | FIXME Describe
+-- | Move specified directory to another location. If destination location
+-- is already occupied, delete that object first.
 
 moveDir :: MonadIO m
   => Path b0 Dir       -- ^ Original location
   -> Path b1 Dir       -- ^ Where to move
   -> m ()
-moveDir base dest = undefined -- TODO write, overwrite existing too
+moveDir src dest = do
+  -- TODO Do not forget about files with the same name.
+  exists <- Dir.doesDirExist dest
+  when exists (Dir.removeDir dest)
+  Dir.renameDir src dest
 
--- | Copy file to new location. Throw 'doesNotExistErrorType' is it does not
+-- | Copy file to new location. Throw 'doesNotExistErrorType' if it does not
 -- exist.
 
 copyFile :: (MonadIO m, MonadThrow m)
   => Path b0 File      -- ^ Original location
   -> Path b1 File      -- ^ Where to put copy of the file
   -> m ()
-copyFile base dest = liftIO $ do
-  let fbase = toFilePath base
+copyFile src dest = liftIO $ do
+  let fsrc = toFilePath src
       location = "System.PlanB.copyFile"
-  exists <- Dir.doesFileExist fbase
+  exists <- Dir.doesFileExist src
   if exists
-    then Dir.copyFile fbase (toFilePath dest)
+    then Dir.copyFile src dest
     else throwM $
-      mkIOError doesNotExistErrorType location Nothing (Just fbase)
+      mkIOError doesNotExistErrorType location Nothing (Just fsrc)
 
--- | FIXME Describe
+-- | Copy contents of one directory into another (recursively). Source
+-- directory must exist, otherwise 'doesNotExistErrorType' is
+-- thrown. Destination directory will be created if it doesn't exist.
 
-copyDir :: (MonadIO m, MonadThrow m)
+copyDir :: (MonadIO m, MonadCatch m)
   => Path b0 Dir       -- ^ Original location
   -> Path b1 Dir       -- ^ Where to put copy of the directory
   -> m ()
-copyDir base dest = undefined -- TODO write, throw if does not exists
+copyDir src dest = do
+  let fsrc = toFilePath src
+      location = "System.PlanB.copyDir"
+  exists <- Dir.doesDirExist src
+  if exists
+     then Dir.copyDirRecur src dest
+     else throwM $
+       mkIOError doesNotExistErrorType location Nothing (Just fsrc)
 
 -- | Perform specified action ignoring IO exceptions it may throw.
 
-ignoringIOErrors :: IO () -> IO ()
+ignoringIOErrors :: MonadCatch m => m () -> m ()
 ignoringIOErrors ioe = ioe `catch` handler
   where
-    handler :: IOError -> IO ()
+    handler :: MonadThrow m => IOError -> m ()
     handler = const (return ())
