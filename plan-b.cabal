@@ -52,7 +52,7 @@ flag dev
   default:            False
 
 library
-  build-depends:      base         >= 4.6 && < 5
+  build-depends:      base         >= 4.7 && < 5
                     , path-io      >= 0.1.1
                     , exceptions   >= 0.8
                     , path         >= 0.5
@@ -76,7 +76,7 @@ test-suite tests
   else
     ghc-options:      -O2 -Wall
   -- default-extensions:
-  build-depends:      base         >= 4.6 && < 5
+  build-depends:      base         >= 4.7 && < 5
                     , directory    >= 1.2
                     , path         >= 0.5
                     , path-io      >= 0.1.1
