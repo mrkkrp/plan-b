@@ -25,7 +25,7 @@ module System.PlanB.Type
 where
 
 import Control.Applicative
-import Data.Monoid ((<>), Any (..))
+import Data.Monoid
 import Path
 
 -- | We use this as named kind with two promoted constructors. The
