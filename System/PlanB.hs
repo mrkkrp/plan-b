@@ -89,7 +89,7 @@ withExistingFile pbc fpath action = withTempDir pbc $ \tdir -> do
 -- version of new directory.
 --
 -- This action throws 'alreadyExistsErrorType' by default instead of
--- silently overwriting already existing directory, see 'overrideIfExists'
+-- silently overwriting already existing directory, use 'overrideIfExists'
 -- and 'useIfExists'to change this behavior.
 
 withNewDir :: (MonadIO m, MonadMask m)
@@ -127,7 +127,7 @@ withExistingDir pbc dpath action = withTempDir pbc $ \tdir -> do
 -- temporary directory.
 --
 -- This action throws 'alreadyExistsErrorType' by default instead of
--- silently overwriting already existing file, see 'overrideIfExists' and
+-- silently overwriting already existing file, use 'overrideIfExists' and
 -- 'useIfExists'to change this behavior.
 
 withNewContainer :: (MonadIO m, MonadMask m)
@@ -219,7 +219,6 @@ checkExistenceOfFile :: (CanHandleExisting c, MonadIO m, MonadThrow m)
 checkExistenceOfFile pbc apath fpath = liftIO $ do
   let ffile = toFilePath fpath
       location = "System.PlanB.checkExistenceOfFile"
-  -- TODO What to do when a directory with such name exists?
   exists <- Dir.doesFileExist fpath
   when exists $
     case howHandleExisting pbc of
@@ -239,7 +238,6 @@ checkExistenceOfDir :: (CanHandleExisting c, MonadIO m, MonadThrow m)
 checkExistenceOfDir pbc apath dpath = liftIO $ do
   let ddir = toFilePath dpath
       location = "System.PlanB.checkExistenceOfDir"
-  -- TODO What to do when a file with such name exists?
   exists <- Dir.doesDirExist dpath
   when exists $
     case howHandleExisting pbc of
@@ -256,7 +254,6 @@ moveDir :: MonadIO m
   -> Path b1 Dir       -- ^ Where to move
   -> m ()
 moveDir src dest = do
-  -- TODO Do not forget about files with the same name.
   exists <- Dir.doesDirExist dest
   when exists (Dir.removeDir dest)
   Dir.renameDir src dest
