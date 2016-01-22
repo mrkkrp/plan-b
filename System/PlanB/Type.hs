@@ -52,7 +52,7 @@ data AlreadyExistsBehavior
 data PbConfig :: Subject -> * where
   PbConfig ::
     { pbcTempDir        :: Maybe (Path Abs Dir)
-    , pbcNameTemplate   :: Maybe FilePath
+    , pbcNameTemplate   :: Maybe String
     , pbcPreserveCorpse :: Any
     , pbcAlreadyExists  :: Maybe AlreadyExistsBehavior
     } -> PbConfig k
@@ -80,7 +80,7 @@ class HasTemp c where
   -- | Specify template to use to name temporary directory, see
   -- 'System.Directory.openTempFile', default is @\"plan-b\"@.
 
-  nameTemplate :: FilePath -> c
+  nameTemplate :: String -> c
 
   -- | 'preserveCorpse' preserves temporary files and directories when
   -- exception is thrown (normally they are removed).
@@ -88,7 +88,7 @@ class HasTemp c where
   preserveCorpse :: c
 
   getTempDir        :: c -> Maybe (Path Abs Dir)
-  getNameTemplate   :: c -> Maybe FilePath
+  getNameTemplate   :: c -> Maybe String
   getPreserveCorpse :: c -> Bool
 
 instance HasTemp (PbConfig k) where
