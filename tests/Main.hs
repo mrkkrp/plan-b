@@ -41,10 +41,9 @@ import Data.List ((\\))
 import Data.Monoid
 import Path
 import System.IO.Error
-import System.IO.Temp
 import System.PlanB
 import Test.Hspec
-import qualified Path.IO as Dir
+import qualified Path.IO as P
 
 #if !MIN_VERSION_base(4,8,0)
 import Control.Applicative ((<$>), (<$))
@@ -140,8 +139,7 @@ withExistingFileSpec = do
 -- Helpers
 
 withSandbox :: ActionWith (Path Abs Dir) -> IO ()
-withSandbox action = withSystemTempDirectory "plan-b-sandbox"
-  (parseAbsDir >=> action)
+withSandbox = P.withSystemTempDir "plan-b-sandbox"
 
 populatedFile :: Path Abs Dir -> IO (Path Abs File)
 populatedFile dir = path <$ writeFile (toFilePath path) oldFileCont
@@ -159,7 +157,7 @@ isUnderflow _         = False
 
 detectFileCorpse :: Path Abs File -> Bool -> IO ()
 detectFileCorpse file must = do
-  files <- snd <$> Dir.listDirRecur (parent file)
+  files <- snd <$> P.listDirRecur (parent file)
   null (files \\ [file]) `shouldBe` not must
 
 ----------------------------------------------------------------------------

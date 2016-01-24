@@ -38,9 +38,8 @@ import Control.Monad.IO.Class (MonadIO (..))
 import Data.Maybe (fromMaybe)
 import Path
 import System.IO.Error
-import System.IO.Temp
 import System.PlanB.Type
-import qualified Path.IO as Dir
+import qualified Path.IO as P
 
 ----------------------------------------------------------------------------
 -- Operations on files
@@ -62,7 +61,7 @@ withNewFile :: (MonadIO m, MonadMask m)
 withNewFile pbc fpath action = withTempDir pbc $ \tdir -> do
   let apath = constructFilePath tdir fpath
   checkExistenceOfFile pbc apath fpath
-  liftM2 const (action apath) (Dir.renameFile apath fpath)
+  liftM2 const (action apath) (P.renameFile apath fpath)
 
 -- | Edit existing file. Name of the file is taken as the second
 -- argument. The third argument allows to perform actions on temporary copy
@@ -79,7 +78,7 @@ withExistingFile :: (MonadIO m, MonadMask m)
 withExistingFile pbc fpath action = withTempDir pbc $ \tdir -> do
   let apath = constructFilePath tdir fpath
   copyFile fpath apath
-  liftM2 const (action apath) (Dir.renameFile apath fpath)
+  liftM2 const (action apath) (P.renameFile apath fpath)
 
 ----------------------------------------------------------------------------
 -- Operations on directories
@@ -144,7 +143,7 @@ withNewContainer unpack pack pbc fpath action =
     withTempDir pbc $ \udir -> do
       let apath = constructFilePath udir fpath
       checkExistenceOfFile pbc apath fpath
-      using <- Dir.doesFileExist apath
+      using <- P.doesFileExist apath
       when using (unpack apath tdir)
     liftM2 const (action tdir) (pack tdir fpath)
 
@@ -186,14 +185,14 @@ withTempDir :: (HasTemp c, MonadIO m, MonadMask m)
 withTempDir pbc = bracket make free
   where
     make = do
-      tsys <- Dir.getTempDir
+      tsys <- P.getTempDir
       let tdir = fromMaybe tsys (getTempDir pbc)
-      Dir.createDirIfMissing True tdir
+      P.createDirIfMissing True tdir
       let ntmp = fromMaybe "plan-b" (getNameTemplate pbc)
-      liftIO (createTempDirectory (toFilePath tdir) ntmp) >>= parseAbsDir
+      P.createTempDir tdir ntmp
     free = unless (getPreserveCorpse pbc)
       . ignoringIOErrors
-      . Dir.removeDirRecur
+      . P.removeDirRecur
 
 -- | Construct name of file combining given directory path and file name
 -- from path to file.
@@ -219,7 +218,7 @@ checkExistenceOfFile :: (CanHandleExisting c, MonadIO m, MonadThrow m)
 checkExistenceOfFile pbc apath fpath = liftIO $ do
   let ffile = toFilePath fpath
       location = "System.PlanB.checkExistenceOfFile"
-  exists <- Dir.doesFileExist fpath
+  exists <- P.doesFileExist fpath
   when exists $
     case howHandleExisting pbc of
       Nothing -> throwM $
@@ -238,7 +237,7 @@ checkExistenceOfDir :: (CanHandleExisting c, MonadIO m, MonadThrow m)
 checkExistenceOfDir pbc apath dpath = liftIO $ do
   let ddir = toFilePath dpath
       location = "System.PlanB.checkExistenceOfDir"
-  exists <- Dir.doesDirExist dpath
+  exists <- P.doesDirExist dpath
   when exists $
     case howHandleExisting pbc of
       Nothing -> throwM $
@@ -254,9 +253,9 @@ moveDir :: MonadIO m
   -> Path b1 Dir       -- ^ Where to move
   -> m ()
 moveDir src dest = do
-  exists <- Dir.doesDirExist dest
-  when exists (Dir.removeDir dest)
-  Dir.renameDir src dest
+  exists <- P.doesDirExist dest
+  when exists (P.removeDir dest)
+  P.renameDir src dest
 
 -- | Copy file to new location. Throw 'doesNotExistErrorType' if it does not
 -- exist.
@@ -268,9 +267,9 @@ copyFile :: (MonadIO m, MonadThrow m)
 copyFile src dest = liftIO $ do
   let fsrc = toFilePath src
       location = "System.PlanB.copyFile"
-  exists <- Dir.doesFileExist src
+  exists <- P.doesFileExist src
   if exists
-    then Dir.copyFile src dest
+    then P.copyFile src dest
     else throwM $
       mkIOError doesNotExistErrorType location Nothing (Just fsrc)
 
@@ -285,9 +284,9 @@ copyDir :: (MonadIO m, MonadCatch m)
 copyDir src dest = do
   let fsrc = toFilePath src
       location = "System.PlanB.copyDir"
-  exists <- Dir.doesDirExist src
+  exists <- P.doesDirExist src
   if exists
-     then Dir.copyDirRecur src dest
+     then P.copyDirRecur src dest
      else throwM $
        mkIOError doesNotExistErrorType location Nothing (Just fsrc)
 
