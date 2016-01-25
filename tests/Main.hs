@@ -63,37 +63,41 @@ withNewFileSpec = do
 
   context "when such file already exists" . beforeWith populatedFile $ do
     context "when we want to error" $
-      it "throws the right exception" $ \file ->
+      it "throws the right exception" $ \file -> do
         withNewFile' mempty file makeit `shouldThrow` isAlreadyExistsError
+        detectFile file (Just oldFileCont)
     context "when we want to override it" $
       it "overrides it" $ \file -> do
         withNewFile' overrideIfExists file makeit
-        readFile (toFilePath file) `shouldReturn` newFileCont
+        detectFile file (Just newFileCont)
     context "when we want to use it" $
-      it "makes it available for editing" $ \file ->
+      it "makes it available for editing" $ \file -> do
         withNewFile' useIfExists file readit `shouldReturn` oldFileCont
+        detectFile file (Just oldFileCont)
 
-  context "when such file does not exists" . beforeWith missingFile $ do
+  context "when such file does not exist" . beforeWith missingFile $ do
     context "when we throw" $ do
       context "when we want corpse" $
         it "propagates exception, the corpse is there" $ \file -> do
           withNewFile' preserveCorpse file (makeit >=> throwUnderflow)
             `shouldThrow` isUnderflow
+          detectFile file Nothing
           detectFileCorpse file True
       context "when we don't want corpse" $
         it "propagates exception, the corpse is removed" $ \file -> do
           withNewFile' mempty file (makeit >=> throwUnderflow)
             `shouldThrow` isUnderflow
+          detectFile file Nothing
           detectFileCorpse file False
     context "when we finish successfully" $
       it "creates right file, corpse is always removed" $ \file -> do
         withNewFile' preserveCorpse file makeit
-        readFile (toFilePath file) `shouldReturn` newFileCont
+        detectFile file (Just newFileCont)
         detectFileCorpse file False
 
   where withNewFile' pbc p = withNewFile (tempDir (parent p) <> pbc) p
         makeit path = writeFile (toFilePath path) newFileCont
-        readit  = readFile . toFilePath
+        readit = readFile . toFilePath
 
 withExistingFileSpec :: SpecWith (Path Abs Dir)
 withExistingFileSpec = do
@@ -102,26 +106,29 @@ withExistingFileSpec = do
     context "when we throw" $ do
       context "when we want corpse" $
         it "propagates exception, the corpse is there" $ \file -> do
-          withExistingFile' preserveCorpse file (makeit >=> throwUnderflow)
+          withExistingFile' preserveCorpse file (editit >=> throwUnderflow)
             `shouldThrow` isUnderflow
+          detectFile file (Just oldFileCont)
           detectFileCorpse file True
       context "when we don't want corpse" $
         it "propagates exception, the corpse is removed" $ \file -> do
-          withExistingFile' mempty file (makeit >=> throwUnderflow)
+          withExistingFile' mempty file (editit >=> throwUnderflow)
             `shouldThrow` isUnderflow
+          detectFile file (Just oldFileCont)
           detectFileCorpse file False
     context "when we finish successfully" $
       it "updates right file, corpse is always removed" $ \file -> do
-        withExistingFile' preserveCorpse file makeit
-        readFile (toFilePath file) `shouldReturn` newFileCont
+        withExistingFile' preserveCorpse file editit
+        detectFile file (Just newFileCont)
         detectFileCorpse file False
 
   context "when target file is missing" . beforeWith missingFile $
-    it "throws the right exception" $ \file ->
-      withExistingFile' mempty file makeit `shouldThrow` isDoesNotExistError
+    it "throws the right exception" $ \file -> do
+      withExistingFile' mempty file editit `shouldThrow` isDoesNotExistError
+      detectFile file Nothing
 
   where withExistingFile' pbc p = withExistingFile (tempDir (parent p) <> pbc) p
-        makeit path = writeFile (toFilePath path) newFileCont
+        editit path = writeFile (toFilePath path) newFileCont
 
 -- withNewDirSpec :: SpecWith (Path Abs Dir)
 -- withNewDirSpec = undefined
@@ -155,7 +162,21 @@ isUnderflow :: Selector ArithException
 isUnderflow Underflow = True
 isUnderflow _         = False
 
-detectFileCorpse :: Path Abs File -> Bool -> IO ()
+detectFile :: Path Abs File -> Maybe String -> Expectation
+detectFile file mcont = do
+  exists <- P.doesFileExist file
+  case mcont of
+    Nothing ->
+      when exists $
+        expectationFailure "target file should not exist, but it does"
+    Just cont -> do
+      unless exists $
+        expectationFailure "target file does not exist, but it should"
+      acont <- readFile (toFilePath file)
+      unless (cont == acont) $
+        expectationFailure "contents of target file are incorrect"
+
+detectFileCorpse :: Path Abs File -> Bool -> Expectation
 detectFileCorpse file must = do
   files <- snd <$> P.listDirRecur (parent file)
   null (files \\ [file]) `shouldBe` not must
