@@ -53,10 +53,13 @@ main :: IO ()
 main = hspec . around withSandbox $ do
   describe "withNewFile"           withNewFileSpec
   describe "withExistingFile"      withExistingFileSpec
-  -- describe "withNewDir"            withNewDirSpec
-  -- describe "withExistingDir"       withExistingDirSpec
-  -- describe "withNewContainer"      withNewContainerSpec
-  -- describe "withExistingConcainer" withExistingContainerSpec
+  describe "withNewDir"            withNewDirSpec
+  describe "withExistingDir"       withExistingDirSpec
+  describe "withNewContainer"      withNewContainerSpec
+  describe "withExistingConcainer" withExistingContainerSpec
+
+----------------------------------------------------------------------------
+-- Operations on files
 
 withNewFileSpec :: SpecWith (Path Abs Dir)
 withNewFileSpec = do
@@ -64,83 +67,221 @@ withNewFileSpec = do
   context "when such file already exists" . beforeWith populatedFile $ do
     context "when we want to error" $
       it "throws the right exception" $ \file -> do
-        withNewFile' mempty file makeit `shouldThrow` isAlreadyExistsError
+        withNewFile' mempty file pncFile `shouldThrow` isAlreadyExistsError
         detectFile file (Just oldFileCont)
     context "when we want to override it" $
       it "overrides it" $ \file -> do
-        withNewFile' overrideIfExists file makeit
+        withNewFile' overrideIfExists file pncFile
         detectFile file (Just newFileCont)
     context "when we want to use it" $
       it "makes it available for editing" $ \file -> do
-        withNewFile' useIfExists file readit `shouldReturn` oldFileCont
+        withNewFile' useIfExists file getFileCont `shouldReturn` oldFileCont
         detectFile file (Just oldFileCont)
 
   context "when such file does not exist" . beforeWith missingFile $ do
     context "when we throw" $ do
-      context "when we want corpse" $
-        it "propagates exception, the corpse is there" $ \file -> do
-          withNewFile' preserveCorpse file (makeit >=> throwUnderflow)
-            `shouldThrow` isUnderflow
-          detectFile file Nothing
-          detectFileCorpse file True
       context "when we don't want corpse" $
         it "propagates exception, the corpse is removed" $ \file -> do
-          withNewFile' mempty file (makeit >=> throwUnderflow)
+          withNewFile' mempty file (pncFile >=> throwUnderflow)
             `shouldThrow` isUnderflow
           detectFile file Nothing
           detectFileCorpse file False
+      context "when we want corpse" $
+        it "propagates exception, the corpse is there" $ \file -> do
+          withNewFile' preserveCorpse file (pncFile >=> throwUnderflow)
+            `shouldThrow` isUnderflow
+          detectFile file Nothing
+          detectFileCorpse file True
     context "when we finish successfully" $
-      it "creates right file, corpse is always removed" $ \file -> do
-        withNewFile' preserveCorpse file makeit
+      it "creates the right file, corpse is always removed" $ \file -> do
+        withNewFile' preserveCorpse file pncFile
         detectFile file (Just newFileCont)
         detectFileCorpse file False
 
-  where withNewFile' pbc p = withNewFile (tempDir (parent p) <> pbc) p
-        makeit path = writeFile (toFilePath path) newFileCont
-        readit = readFile . toFilePath
+  where
+    withNewFile' pbc p = withNewFile (tempDir (parent p) <> pbc) p
 
 withExistingFileSpec :: SpecWith (Path Abs Dir)
 withExistingFileSpec = do
 
   context "when target file exists" . beforeWith populatedFile $ do
     context "when we throw" $ do
-      context "when we want corpse" $
-        it "propagates exception, the corpse is there" $ \file -> do
-          withExistingFile' preserveCorpse file (editit >=> throwUnderflow)
-            `shouldThrow` isUnderflow
-          detectFile file (Just oldFileCont)
-          detectFileCorpse file True
       context "when we don't want corpse" $
         it "propagates exception, the corpse is removed" $ \file -> do
-          withExistingFile' mempty file (editit >=> throwUnderflow)
+          withExistingFile' mempty file (pncFile >=> throwUnderflow)
             `shouldThrow` isUnderflow
           detectFile file (Just oldFileCont)
           detectFileCorpse file False
+      context "when we want corpse" $
+        it "propagates exception, the corpse is there" $ \file -> do
+          withExistingFile' preserveCorpse file (pncFile >=> throwUnderflow)
+            `shouldThrow` isUnderflow
+          detectFile file (Just oldFileCont)
+          detectFileCorpse file True
     context "when we finish successfully" $
-      it "updates right file, corpse is always removed" $ \file -> do
-        withExistingFile' preserveCorpse file editit
+      it "updates the right file, corpse is always removed" $ \file -> do
+        withExistingFile' preserveCorpse file pncFile
         detectFile file (Just newFileCont)
         detectFileCorpse file False
 
   context "when target file is missing" . beforeWith missingFile $
     it "throws the right exception" $ \file -> do
-      withExistingFile' mempty file editit `shouldThrow` isDoesNotExistError
+      withExistingFile' mempty file pncFile `shouldThrow` isDoesNotExistError
       detectFile file Nothing
 
-  where withExistingFile' pbc p = withExistingFile (tempDir (parent p) <> pbc) p
-        editit path = writeFile (toFilePath path) newFileCont
+  where
+    withExistingFile' pbc p = withExistingFile (tempDir (parent p) <> pbc) p
 
--- withNewDirSpec :: SpecWith (Path Abs Dir)
--- withNewDirSpec = undefined
+----------------------------------------------------------------------------
+-- Operations on directories
 
--- withExistingDirSpec :: SpecWith (Path Abs Dir)
--- withExistingDirSpec = undefined
+withNewDirSpec :: SpecWith (Path Abs Dir)
+withNewDirSpec = do
 
--- withNewContainerSpec :: SpecWith (Path Abs Dir)
--- withNewContainerSpec = undefined
+  context "when such directory already exists" . beforeWith populatedDir $ do
+    context "when we want to error" $
+      it "throws the right exception" $ \dir -> do
+        withNewDir' mempty dir pncDir `shouldThrow` isAlreadyExistsError
+        detectDir dir (Just oldDirCont)
+    context "when we want to override it" $
+      it "overrides it" $ \dir -> do
+        withNewDir' overrideIfExists dir pncDir
+        detectDir dir (Just newDirCont)
+    context "when we want to use it" $
+      it "makes it available for editing" $ \dir -> do
+        withNewDir' useIfExists dir getDirCont `shouldReturn` oldDirCont
+        detectDir dir (Just oldDirCont)
 
--- withExistingContainerSpec :: SpecWith (Path Abs Dir)
--- withExistingContainerSpec = undefined
+  context "when such directory does not exist" . beforeWith missingDir $ do
+    context "when we throw" $ do
+      context "when we don't want corpse" $
+        it "propagates exception, the corpse is removed" $ \dir -> do
+          withNewDir' mempty dir (pncDir >=> throwUnderflow)
+            `shouldThrow` isUnderflow
+          detectDir dir Nothing
+          detectDirCorpse dir False
+      context "when we want corpse" $
+        it "propagates exception, the corpse is there" $ \dir -> do
+          withNewDir' preserveCorpse dir (pncDir >=> throwUnderflow)
+            `shouldThrow` isUnderflow
+          detectDir dir Nothing
+          detectDirCorpse dir True
+    context "when we finish successfully" $
+      it "creates the right directory, corpse is always removed" $ \dir -> do
+        withNewDir' preserveCorpse dir pncDir
+        detectDir dir (Just newDirCont)
+        detectDirCorpse dir False
+
+  where
+    withNewDir' pbc p = withNewDir (tempDir (parent p) <> pbc) p
+
+withExistingDirSpec :: SpecWith (Path Abs Dir)
+withExistingDirSpec = do
+
+  context "when target directory exists" . beforeWith populatedDir $ do
+    context "when we throw" $ do
+      context "when we don't want corpse" $
+        it "propagates exception, the corpse is removed" $ \dir -> do
+          withExistingDir' mempty dir (pncDir >=> throwUnderflow)
+            `shouldThrow` isUnderflow
+          detectDir dir (Just oldDirCont)
+          detectDirCorpse dir False
+      context "when we want corpse" $
+        it "propagates exception, the corpse is there" $ \dir -> do
+          withExistingDir' preserveCorpse dir (pncDir >=> throwUnderflow)
+            `shouldThrow` isUnderflow
+          detectDir dir (Just oldDirCont)
+          detectDirCorpse dir True
+    context "when we finish successfully" $
+      it "updates the right directory, corpse is always removed" $ \dir -> do
+        withExistingDir' preserveCorpse dir pncDir
+        detectDir dir (Just newDirCont)
+        detectDirCorpse dir False
+
+  context "when target directory is missing" . beforeWith missingDir $
+    it "throws the right exception" $ \dir -> do
+      withExistingDir' mempty dir pncDir `shouldThrow` isDoesNotExistError
+      detectDir dir Nothing
+
+  where
+    withExistingDir' pbc p = withExistingDir (tempDir (parent p) <> pbc) p
+
+----------------------------------------------------------------------------
+-- Operations on containers
+
+withNewContainerSpec :: SpecWith (Path Abs Dir)
+withNewContainerSpec = do
+
+  context "when container already exists" . beforeWith populatedFile $ do
+    context "when we want to error" $
+      it "throws the right exception" $ \file -> do
+        withNewContainer' mempty file pncDir `shouldThrow` isAlreadyExistsError
+        detectFile file (Just oldFileCont)
+    context "when we want to override it" $
+      it "overrides it" $ \file -> do
+        withNewContainer' overrideIfExists file pncDir
+        detectFile file (Just newFileCont)
+    context "when we want to use it" $
+      it "makes it available for editing" $ \file -> do
+        withNewContainer' useIfExists file getDirCont `shouldReturn` oldDirCont
+        detectFile file (Just oldFileCont)
+
+  context "when container does not exist" . beforeWith missingFile $ do
+    context "when we throw" $ do
+      context "when we don't want corpse" $
+        it "propagates exception, the corpse is removed" $ \file -> do
+          withNewContainer' mempty file (pncDir >=> throwUnderflow)
+            `shouldThrow` isUnderflow
+          detectFile file Nothing
+          detectDirCorpse file False
+      context "when we want corpse" $
+        it "propagates exception, the corpse is there" $ \file -> do
+          withNewContainer' preserveCorpse file (pncDir >=> throwUnderflow)
+            `shouldThrow` isUnderflow
+          detectFile file Nothing
+          detectDirCorpse file True
+    context "when we finish successfully" $
+      it "creates the right file, corpse is always removed" $ \file -> do
+        withNewContainer' preserveCorpse file pncDir
+        detectFile file (Just newFileCont)
+        detectDirCorpse file False
+
+  where
+    withNewContainer' pbc p =
+      withNewContainer unpack pack (tempDir (parent p) <> pbc) p
+
+withExistingContainerSpec :: SpecWith (Path Abs Dir)
+withExistingContainerSpec = do
+
+  context "when container exists" . beforeWith populatedFile $ do
+    context "when we throw" $ do
+      context "when we don't want corpse" $
+        it "propagates exception, the corpse is removed" $ \file -> do
+          withExistingContainer' mempty file (pncDir >=> throwUnderflow)
+            `shouldThrow` isUnderflow
+          detectFile file (Just oldFileCont)
+          detectDirCorpse file False
+      context "when we want corpse" $
+        it "propagates exception, the corpse is there" $ \file -> do
+          withExistingContainer' preserveCorpse file (pncDir >=> throwUnderflow)
+            `shouldThrow` isUnderflow
+          detectFile file (Just oldFileCont)
+          detectDirCorpse file True
+    context "when we finish successfully" $
+      it "updates the container, corpse is always removed" $ \file -> do
+        withExistingContainer' preserveCorpse file pncDir
+        detectFile file (Just newFileCont)
+        detectDirCorpse file False
+
+  context "when container is missing" . beforeWith missingFile $
+    it "throws the right exception" $ \file -> do
+      withExistingContainer' mempty file pncDir
+        `shouldThrow` isDoesNotExistError
+      detectFile file Nothing
+
+  where
+    withExistingContainer' pbc p =
+      withExistingContainer unpack pack (tempDir (parent p) <> pbc) p
 
 ----------------------------------------------------------------------------
 -- Helpers
@@ -152,8 +293,19 @@ populatedFile :: Path Abs Dir -> IO (Path Abs File)
 populatedFile dir = path <$ writeFile (toFilePath path) oldFileCont
   where path = dir </> preExistingFile
 
+populatedDir :: Path Abs Dir -> IO (Path Abs Dir)
+populatedDir dir = do
+  P.createDirIfMissing True path
+  forM_ oldDirCont $ \file ->
+    writeFile (toFilePath $ path </> file) oldFileCont
+  return path
+  where path = dir </> preExistingDir
+
 missingFile :: Path Abs Dir -> IO (Path Abs File)
 missingFile dir = return (dir </> preExistingFile)
+
+missingDir :: Path Abs Dir -> IO (Path Abs Dir)
+missingDir dir = return (dir </> preExistingDir)
 
 throwUnderflow :: a
 throwUnderflow = throw Underflow
@@ -176,10 +328,43 @@ detectFile file mcont = do
       unless (cont == acont) $
         expectationFailure "contents of target file are incorrect"
 
+detectDir :: Path Abs Dir -> Maybe [Path Rel File] -> Expectation
+detectDir dir mcont = do
+  exists <- P.doesDirExist dir
+  case mcont of
+    Nothing ->
+      when exists $
+        expectationFailure "target dir should not exist, but it does"
+    Just cont -> do
+      unless exists $
+        expectationFailure "target dir does not exist, but it should"
+      -- TODO check that contents of the directory are correct
+
 detectFileCorpse :: Path Abs File -> Bool -> Expectation
 detectFileCorpse file must = do
   files <- snd <$> P.listDirRecur (parent file)
   null (files \\ [file]) `shouldBe` not must
+
+detectDirCorpse :: Path Abs t -> Bool -> Expectation
+detectDirCorpse dir must = undefined -- TODO write it as well
+
+getFileCont :: Path Abs File -> IO String
+getFileCont = readFile . toFilePath
+
+getDirCont :: Path Abs Dir -> IO [Path Rel File]
+getDirCont = undefined -- TODO write me, please
+
+pncFile :: Path Abs File -> IO ()
+pncFile file = writeFile (toFilePath file) newFileCont
+
+pncDir :: Path Abs Dir -> IO ()
+pncDir = undefined -- TODO create/overwrite dir structure
+
+unpack :: Path Abs File -> Path Abs Dir -> IO ()
+unpack = undefined -- TODO
+
+pack :: Path Abs Dir -> Path Abs File -> IO ()
+pack = undefined -- TODO
 
 ----------------------------------------------------------------------------
 -- Constants
@@ -187,11 +372,17 @@ detectFileCorpse file must = do
 preExistingFile :: Path Rel File
 preExistingFile = $(mkRelFile "file.txt")
 
--- preExistingDir :: Path Rel Dir
--- preExistingDir = $(mkRelDir "dir")
+preExistingDir :: Path Rel Dir
+preExistingDir = $(mkRelDir "dir")
 
 oldFileCont :: String
 oldFileCont = "old"
 
 newFileCont :: String
 newFileCont = "new"
+
+oldDirCont :: [Path Rel File]
+oldDirCont = [$(mkRelFile "old-file-0.txt"), $(mkRelFile "old-file-1.txt")]
+
+newDirCont :: [Path Rel File]
+newDirCont = [$(mkRelFile "new-file-0.txt"), $(mkRelFile "new-file-1.txt")]
