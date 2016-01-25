@@ -175,14 +175,16 @@ withExistingContainer unpack pack pbc fpath action =
 
 -- | Use temporary directory. This action is controlled by supplied
 -- configuration, see 'HasTemp'. The temporary directory is removed
--- automatically when given action finished, although this can be changed
--- via the mentioned configuration value too.
+-- automatically when given action finishes, although this can be changed
+-- via the mentioned configuration value too. If given action finishes
+-- successfully, temporary directory is always deleted.
 
 withTempDir :: (HasTemp c, MonadIO m, MonadMask m)
   => c                 -- ^ Configuration
   -> (Path Abs Dir -> m a) -- ^ Action to perform with the temporary file
   -> m a
-withTempDir pbc = bracket make free
+withTempDir pbc action = bracketOnError make freeOptionally $ \dir ->
+  liftM2 const (action dir) (freeAlways dir)
   where
     make = do
       tsys <- P.getTempDir
@@ -190,9 +192,8 @@ withTempDir pbc = bracket make free
       P.createDirIfMissing True tdir
       let ntmp = fromMaybe "plan-b" (getNameTemplate pbc)
       P.createTempDir tdir ntmp
-    free = unless (getPreserveCorpse pbc)
-      . ignoringIOErrors
-      . P.removeDirRecur
+    freeAlways = ignoringIOErrors . P.removeDirRecur
+    freeOptionally = unless (getPreserveCorpse pbc) . freeAlways
 
 -- | Construct name of file combining given directory path and file name
 -- from path to file.
