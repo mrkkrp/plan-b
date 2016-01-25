@@ -255,7 +255,7 @@ moveDir :: MonadIO m
   -> m ()
 moveDir src dest = do
   exists <- P.doesDirExist dest
-  when exists (P.removeDir dest)
+  when exists (P.removeDirRecur dest)
   P.renameDir src dest
 
 -- | Copy file to new location. Throw 'doesNotExistErrorType' if it does not
