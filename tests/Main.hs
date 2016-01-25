@@ -39,6 +39,7 @@ import Control.Exception
 import Control.Monad
 import Data.List ((\\))
 import Data.Monoid
+import Data.Typeable (Typeable)
 import Path
 import System.IO.Error
 import System.PlanB
@@ -82,14 +83,14 @@ withNewFileSpec = do
     context "when we throw" $ do
       context "when we don't want corpse" $
         it "propagates exception, the corpse is removed" $ \file -> do
-          withNewFile' mempty file (pncFile >=> throwUnderflow)
-            `shouldThrow` isUnderflow
+          withNewFile' mempty file (pncFile >=> throwExc)
+            `shouldThrow` isExc
           detectFile file Nothing
           detectFileCorpse file False
       context "when we want corpse" $
         it "propagates exception, the corpse is there" $ \file -> do
-          withNewFile' preserveCorpse file (pncFile >=> throwUnderflow)
-            `shouldThrow` isUnderflow
+          withNewFile' preserveCorpse file (pncFile >=> throwExc)
+            `shouldThrow` isExc
           detectFile file Nothing
           detectFileCorpse file True
     context "when we finish successfully" $
@@ -108,14 +109,14 @@ withExistingFileSpec = do
     context "when we throw" $ do
       context "when we don't want corpse" $
         it "propagates exception, the corpse is removed" $ \file -> do
-          withExistingFile' mempty file (pncFile >=> throwUnderflow)
-            `shouldThrow` isUnderflow
+          withExistingFile' mempty file (pncFile >=> throwExc)
+            `shouldThrow` isExc
           detectFile file (Just oldFileCont)
           detectFileCorpse file False
       context "when we want corpse" $
         it "propagates exception, the corpse is there" $ \file -> do
-          withExistingFile' preserveCorpse file (pncFile >=> throwUnderflow)
-            `shouldThrow` isUnderflow
+          withExistingFile' preserveCorpse file (pncFile >=> throwExc)
+            `shouldThrow` isExc
           detectFile file (Just oldFileCont)
           detectFileCorpse file True
     context "when we finish successfully" $
@@ -156,14 +157,14 @@ withNewDirSpec = do
     context "when we throw" $ do
       context "when we don't want corpse" $
         it "propagates exception, the corpse is removed" $ \dir -> do
-          withNewDir' mempty dir (pncDir >=> throwUnderflow)
-            `shouldThrow` isUnderflow
+          withNewDir' mempty dir (pncDir >=> throwExc)
+            `shouldThrow` isExc
           detectDir dir Nothing
           detectDirCorpse dir False
       context "when we want corpse" $
         it "propagates exception, the corpse is there" $ \dir -> do
-          withNewDir' preserveCorpse dir (pncDir >=> throwUnderflow)
-            `shouldThrow` isUnderflow
+          withNewDir' preserveCorpse dir (pncDir >=> throwExc)
+            `shouldThrow` isExc
           detectDir dir Nothing
           detectDirCorpse dir True
     context "when we finish successfully" $
@@ -182,14 +183,14 @@ withExistingDirSpec = do
     context "when we throw" $ do
       context "when we don't want corpse" $
         it "propagates exception, the corpse is removed" $ \dir -> do
-          withExistingDir' mempty dir (pncDir >=> throwUnderflow)
-            `shouldThrow` isUnderflow
+          withExistingDir' mempty dir (pncDir >=> throwExc)
+            `shouldThrow` isExc
           detectDir dir (Just oldDirCont)
           detectDirCorpse dir False
       context "when we want corpse" $
         it "propagates exception, the corpse is there" $ \dir -> do
-          withExistingDir' preserveCorpse dir (pncDir >=> throwUnderflow)
-            `shouldThrow` isUnderflow
+          withExistingDir' preserveCorpse dir (pncDir >=> throwExc)
+            `shouldThrow` isExc
           detectDir dir (Just oldDirCont)
           detectDirCorpse dir True
     context "when we finish successfully" $
@@ -230,14 +231,14 @@ withNewContainerSpec = do
     context "when we throw" $ do
       context "when we don't want corpse" $
         it "propagates exception, the corpse is removed" $ \file -> do
-          withNewContainer' mempty file (pncDir >=> throwUnderflow)
-            `shouldThrow` isUnderflow
+          withNewContainer' mempty file (pncDir >=> throwExc)
+            `shouldThrow` isExc
           detectFile file Nothing
           detectDirCorpse file False
       context "when we want corpse" $
         it "propagates exception, the corpse is there" $ \file -> do
-          withNewContainer' preserveCorpse file (pncDir >=> throwUnderflow)
-            `shouldThrow` isUnderflow
+          withNewContainer' preserveCorpse file (pncDir >=> throwExc)
+            `shouldThrow` isExc
           detectFile file Nothing
           detectDirCorpse file True
     context "when we finish successfully" $
@@ -257,14 +258,14 @@ withExistingContainerSpec = do
     context "when we throw" $ do
       context "when we don't want corpse" $
         it "propagates exception, the corpse is removed" $ \file -> do
-          withExistingContainer' mempty file (pncDir >=> throwUnderflow)
-            `shouldThrow` isUnderflow
+          withExistingContainer' mempty file (pncDir >=> throwExc)
+            `shouldThrow` isExc
           detectFile file (Just oldFileCont)
           detectDirCorpse file False
       context "when we want corpse" $
         it "propagates exception, the corpse is there" $ \file -> do
-          withExistingContainer' preserveCorpse file (pncDir >=> throwUnderflow)
-            `shouldThrow` isUnderflow
+          withExistingContainer' preserveCorpse file (pncDir >=> throwExc)
+            `shouldThrow` isExc
           detectFile file (Just oldFileCont)
           detectDirCorpse file True
     context "when we finish successfully" $
@@ -307,12 +308,18 @@ missingFile dir = return (dir </> preExistingFile)
 missingDir :: Path Abs Dir -> IO (Path Abs Dir)
 missingDir dir = return (dir </> preExistingDir)
 
-throwUnderflow :: a
-throwUnderflow = throw Underflow
+-- | Unique type of exception that we throw in tests.
 
-isUnderflow :: Selector ArithException
-isUnderflow Underflow = True
-isUnderflow _         = False
+data PlanBException = PlanBException
+  deriving (Show, Typeable)
+
+instance Exception PlanBException
+
+throwExc :: a
+throwExc = throw PlanBException
+
+isExc :: Selector PlanBException
+isExc = const True
 
 detectFile :: Path Abs File -> Maybe String -> Expectation
 detectFile file mcont = do
