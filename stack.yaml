@@ -1,3 +1,5 @@
-resolver: nightly-2016-01-23
+resolver: lts-5.4
 packages:
 - '.'
+extra-deps:
+- path-io-1.0.1
