@@ -28,6 +28,7 @@ module System.PlanB
   , tempDir
   , nameTemplate
   , preserveCorpse
+  , moveByRenaming
   , overrideIfExists
   , useIfExists )
 where
@@ -35,6 +36,7 @@ where
 import Control.Monad
 import Control.Monad.Catch
 import Control.Monad.IO.Class (MonadIO (..))
+import Data.Bool (bool)
 import Data.Maybe (fromMaybe)
 import Path
 import System.IO.Error
@@ -61,7 +63,7 @@ withNewFile :: (MonadIO m, MonadMask m)
 withNewFile pbc fpath action = withTempDir pbc $ \tdir -> do
   let apath = constructFilePath tdir fpath
   checkExistenceOfFile pbc apath fpath
-  liftM2 const (action apath) (P.copyFile apath fpath)
+  liftM2 const (action apath) (moveFile pbc apath fpath)
 
 -- | Edit existing file. Name of the file is taken as the second
 -- argument. The third argument allows to perform actions on temporary copy
@@ -78,7 +80,7 @@ withExistingFile :: (MonadIO m, MonadMask m)
 withExistingFile pbc fpath action = withTempDir pbc $ \tdir -> do
   let apath = constructFilePath tdir fpath
   copyFile fpath apath
-  liftM2 const (action apath) (P.copyFile apath fpath)
+  liftM2 const (action apath) (moveFile pbc apath fpath)
 
 ----------------------------------------------------------------------------
 -- Operations on directories
@@ -98,7 +100,7 @@ withNewDir :: (MonadIO m, MonadMask m)
   -> m a
 withNewDir pbc dpath action = withTempDir pbc $ \tdir -> do
   checkExistenceOfDir pbc tdir dpath
-  liftM2 const (action tdir) (copyDir' tdir dpath)
+  liftM2 const (action tdir) (moveDir pbc tdir dpath)
 
 -- | Edit existing directory. Name of the directory is specified as the
 -- second argument. The third argument allows to perform actions in
@@ -114,7 +116,7 @@ withExistingDir :: (MonadIO m, MonadMask m)
   -> m a
 withExistingDir pbc dpath action = withTempDir pbc $ \tdir -> do
   copyDir dpath tdir
-  liftM2 const (action tdir) (copyDir' tdir dpath)
+  liftM2 const (action tdir) (moveDir pbc tdir dpath)
 
 ----------------------------------------------------------------------------
 -- Operations on containers
@@ -246,17 +248,31 @@ checkExistenceOfDir pbc apath dpath = liftIO $ do
       Just AebOverride -> return ()
       Just AebUse -> copyDir dpath apath
 
--- | Copy specified directory to another location. If destination location
--- is already occupied, delete that object first.
+-- | Move specified file to another location. File can be moved either by
+-- copying or by renaming, exact method is determined by supplied
+-- configuration.
 
-copyDir' :: (MonadIO m, MonadCatch m)
-  => Path b0 Dir       -- ^ Original location
+moveFile :: (HasTemp c, MonadIO m)
+  => c                 -- ^ Configuration
+  -> Path b0 File      -- ^ Original location
+  -> Path b1 File      -- ^ Where to move
+  -> m ()
+moveFile pbc = bool P.copyFile P.renameFile (getMoveByRenaming pbc)
+
+-- | Move specified directory to another location. If destination location
+-- is already occupied, delete that object first. Directory can be moved
+-- either by copying or by renaming, exact method is determined by supplied
+-- configuration.
+
+moveDir :: (HasTemp c, MonadIO m, MonadCatch m)
+  => c                 -- ^ Configuration
+  -> Path b0 Dir       -- ^ Original location
   -> Path b1 Dir       -- ^ Where to move
   -> m ()
-copyDir' src dest = do
+moveDir pbc src dest = do
   exists <- P.doesDirExist dest
   when exists (P.removeDirRecur dest)
-  P.copyDirRecur src dest
+  bool P.copyDirRecur P.renameDir (getMoveByRenaming pbc) src dest
 
 -- | Copy file to new location. Throw 'doesNotExistErrorType' if it does not
 -- exist.

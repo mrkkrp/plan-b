@@ -54,15 +54,17 @@ data PbConfig :: Subject -> * where
     { pbcTempDir        :: Maybe (Path Abs Dir)
     , pbcNameTemplate   :: Maybe String
     , pbcPreserveCorpse :: Any
+    , pbcMoveByRenaming :: Any
     , pbcAlreadyExists  :: Maybe AlreadyExistsBehavior
     } -> PbConfig k
 
 instance Monoid (PbConfig k) where
-  mempty  = PbConfig empty empty mempty empty
+  mempty  = PbConfig empty empty mempty mempty empty
   x `mappend` y = PbConfig
     { pbcTempDir        = pbcTempDir x       <|> pbcTempDir y
     , pbcNameTemplate   = pbcNameTemplate x  <|> pbcNameTemplate y
     , pbcPreserveCorpse = pbcPreserveCorpse x <> pbcPreserveCorpse y
+    , pbcMoveByRenaming = pbcMoveByRenaming x <> pbcMoveByRenaming y
     , pbcAlreadyExists  = pbcAlreadyExists x <|> pbcAlreadyExists y }
 
 -- | The type class is for data types that include information specifying
@@ -87,19 +89,27 @@ class HasTemp c where
 
   preserveCorpse :: c
 
+  -- | By default files are moved by copying. Moving by renaming, although
+  -- not always possible, often more efficient. This option enables it.
+
+  moveByRenaming :: c
+
   getTempDir        :: c -> Maybe (Path Abs Dir)
   getNameTemplate   :: c -> Maybe String
   getPreserveCorpse :: c -> Bool
+  getMoveByRenaming :: c -> Bool
 
 instance HasTemp (PbConfig k) where
 
   tempDir dir       = mempty { pbcTempDir        = Just dir }
   nameTemplate nt   = mempty { pbcNameTemplate   = Just nt  }
   preserveCorpse    = mempty { pbcPreserveCorpse = Any True }
+  moveByRenaming    = mempty { pbcMoveByRenaming = Any True }
 
   getTempDir        = pbcTempDir
   getNameTemplate   = pbcNameTemplate
   getPreserveCorpse = getAny . pbcPreserveCorpse
+  getMoveByRenaming = getAny . pbcMoveByRenaming
 
 -- | The type class includes data types that contain information about what
 -- to do when some object already exists. There are two scenarios currently
