@@ -71,6 +71,9 @@ aspects of this business:
   inspected. However, if operation succeeds, temporary directory is *always*
   deleted.
 
+* `moveByRenaming` — by default files and directories are moved by copying,
+  this option enables moving by renaming.
+
 That should be enough for a quick intro, for more information regarding
 concrete functions, consult Haddocks.
 
