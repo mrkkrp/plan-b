@@ -213,7 +213,7 @@ constructFilePath dir file = dir </> filename file
 -- automatically, if we have 'AebUse', then we should copy it into given
 -- directory.
 
-checkExistenceOfFile :: (CanHandleExisting c, MonadIO m, MonadThrow m)
+checkExistenceOfFile :: (CanHandleExisting c, MonadIO m)
   => c                 -- ^ Configuration
   -> Path Abs File     -- ^ Where to copy file (when we have 'AebUse')
   -> Path b   File     -- ^ File to check
@@ -232,7 +232,7 @@ checkExistenceOfFile pbc apath fpath = liftIO $ do
 -- | Check existence of directory and perform actions according to given
 -- configuration. See 'checkExistenceOfFile', overall behavior is the same.
 
-checkExistenceOfDir :: (CanHandleExisting c, MonadIO m, MonadThrow m)
+checkExistenceOfDir :: (CanHandleExisting c, MonadIO m)
   => c                 -- ^ Configuration
   -> Path Abs Dir      -- ^ Where to copy directory (when we have 'AebUse')
   -> Path b   Dir      -- ^ Directory to check
@@ -277,7 +277,7 @@ moveDir pbc src dest = do
 -- | Copy file to new location. Throw 'doesNotExistErrorType' if it does not
 -- exist.
 
-copyFile :: (MonadIO m, MonadThrow m)
+copyFile :: MonadIO m
   => Path b0 File      -- ^ Original location
   -> Path b1 File      -- ^ Where to put copy of the file
   -> m ()
