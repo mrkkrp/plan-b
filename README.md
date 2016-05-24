@@ -3,6 +3,7 @@
 [![License BSD3](https://img.shields.io/badge/license-BSD3-brightgreen.svg)](http://opensource.org/licenses/BSD-3-Clause)
 [![Hackage](https://img.shields.io/hackage/v/plan-b.svg?style=flat)](https://hackage.haskell.org/package/plan-b)
 [![Stackage Nightly](http://stackage.org/package/plan-b/badge/nightly)](http://stackage.org/nightly/package/plan-b)
+[![Stackage LTS](http://stackage.org/package/plan-b/badge/lts)](http://stackage.org/lts/package/plan-b)
 [![Build Status](https://travis-ci.org/mrkkrp/plan-b.svg?branch=master)](https://travis-ci.org/mrkkrp/plan-b)
 [![Coverage Status](https://coveralls.io/repos/mrkkrp/plan-b/badge.svg?branch=master&service=github)](https://coveralls.io/github/mrkkrp/plan-b?branch=master)
 
