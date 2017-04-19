@@ -8,9 +8,9 @@
 -- Portability :  portable
 --
 -- Failure-tolerant file and directory editing. All functions here can
--- recover from exceptions thrown while they work. They bring file-system to
--- the state it was in before specific function was called. Temporary files
--- and backups are handled automatically.
+-- recover from exceptions thrown while they work. They bring file-system
+-- into the state it was in before specific function was called. Temporary
+-- files and backups are handled automatically.
 
 {-# LANGUAGE DataKinds #-}
 
@@ -46,10 +46,10 @@ import qualified Path.IO as P
 ----------------------------------------------------------------------------
 -- Operations on files
 
--- | Create new file. Name of the file is taken as the second argument. The
--- third argument allows to perform actions (in simplest case just creation
--- of file), result of those actions should be new file with given file
--- name.
+-- | Create a new file. Name of the file is taken as the second argument.
+-- The third argument allows to perform actions (in simplest case just
+-- creation of file), result of those actions should be new file with the
+-- given file name.
 --
 -- This action throws 'alreadyExistsErrorType' by default instead of
 -- silently overwriting already existing file, use 'overrideIfExists' and
@@ -65,7 +65,7 @@ withNewFile pbc fpath action = withTempDir pbc $ \tdir -> do
   checkExistenceOfFile pbc apath fpath
   liftM2 const (action apath) (moveFile pbc apath fpath)
 
--- | Edit existing file. Name of the file is taken as the second
+-- | Edit an existing file. Name of the file is taken as the second
 -- argument. The third argument allows to perform actions on temporary copy
 -- of specified file.
 --
@@ -85,9 +85,9 @@ withExistingFile pbc fpath action = withTempDir pbc $ \tdir -> do
 ----------------------------------------------------------------------------
 -- Operations on directories
 
--- | Create new directory. Name of the directory is specified as the second
--- argument. The third argument allows to perform actions in “sandboxed”
--- version of new directory.
+-- | Create a new directory. Name of the directory is specified as the
+-- second argument. The third argument allows to perform actions in
+-- “sandboxed” version of new directory.
 --
 -- This action throws 'alreadyExistsErrorType' by default instead of
 -- silently overwriting already existing directory, use 'overrideIfExists'
@@ -102,7 +102,7 @@ withNewDir pbc dpath action = withTempDir pbc $ \tdir -> do
   checkExistenceOfDir pbc tdir dpath
   liftM2 const (action tdir) (moveDir pbc tdir dpath)
 
--- | Edit existing directory. Name of the directory is specified as the
+-- | Edit an existing directory. Name of the directory is specified as the
 -- second argument. The third argument allows to perform actions in
 -- “sandboxed” copy of target directory.
 --
@@ -121,9 +121,9 @@ withExistingDir pbc dpath action = withTempDir pbc $ \tdir -> do
 ----------------------------------------------------------------------------
 -- Operations on containers
 
--- | Create new container file. This is suitable for processing of all sorts
--- of archive-like objects. The first and second arguments specify how to
--- unpack directory from file and pack it back. The fourth argument names
+-- | Create a new container file. This is suitable for processing of all
+-- sorts of archive-like objects. The first and second arguments specify how
+-- to unpack directory from file and pack it back. The fourth argument names
 -- new file. The fifth argument allows to perform actions knowing name of
 -- temporary directory.
 --
@@ -149,11 +149,11 @@ withNewContainer unpack pack pbc fpath action =
       when using (unpack apath tdir)
     liftM2 const (action tdir) (pack tdir fpath)
 
--- | Edit existing container file. This is suitable for processing of all
+-- | Edit an existing container file. This is suitable for processing of all
 -- sorts of archive-like objects. The first and second arguments specify how
--- to unpack directory from file and pack it back (overwriting old
--- version). Fourth argument names container file to edit. The last argument
--- allows to perform actions knowing name of temporary directory.
+-- to unpack directory from file and pack it back (overwriting old version).
+-- Fourth argument names container file to edit. The last argument allows to
+-- perform actions knowing name of temporary directory.
 --
 -- This action throws 'doesNotExistErrorType' exception if target file does
 -- not exist.
@@ -175,7 +175,7 @@ withExistingContainer unpack pack pbc fpath action =
 ----------------------------------------------------------------------------
 -- Helpers
 
--- | Use temporary directory. This action is controlled by supplied
+-- | Use a temporary directory. This action is controlled by supplied
 -- configuration, see 'HasTemp'. The temporary directory is removed
 -- automatically when given action finishes, although this can be changed
 -- via the mentioned configuration value too. If given action finishes
@@ -274,8 +274,8 @@ moveDir pbc src dest = do
   when exists (P.removeDirRecur dest)
   bool P.copyDirRecur P.renameDir (getMoveByRenaming pbc) src dest
 
--- | Copy file to new location. Throw 'doesNotExistErrorType' if it does not
--- exist.
+-- | Copy a file to a new location. Throw 'doesNotExistErrorType' if it does
+-- not exist.
 
 copyFile :: MonadIO m
   => Path b0 File      -- ^ Original location
@@ -291,8 +291,8 @@ copyFile src dest = liftIO $ do
       mkIOError doesNotExistErrorType location Nothing (Just fsrc)
 
 -- | Copy contents of one directory into another (recursively). Source
--- directory must exist, otherwise 'doesNotExistErrorType' is
--- thrown. Destination directory will be created if it doesn't exist.
+-- directory must exist, otherwise 'doesNotExistErrorType' is thrown.
+-- Destination directory will be created if it doesn't exist.
 
 copyDir :: (MonadIO m, MonadCatch m)
   => Path b0 Dir       -- ^ Original location
