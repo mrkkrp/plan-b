@@ -1,3 +1,7 @@
+## Plan B 0.2.1
+
+* Implement `Semigroup` instance for the `PgConfig` type.
+
 ## Plan B 0.2.0
 
 * Added `moveByRenaming` option to allow move files and directories by

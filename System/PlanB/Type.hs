@@ -24,7 +24,7 @@ module System.PlanB.Type
 where
 
 import Control.Applicative
-import Data.Monoid
+import Data.Semigroup
 import Path
 
 -- | We use this as a kind with two promoted constructors. The constructors
@@ -57,14 +57,17 @@ data PbConfig :: Subject -> * where
     , pbcAlreadyExists  :: Maybe AlreadyExistsBehavior
     } -> PbConfig k
 
-instance Monoid (PbConfig k) where
-  mempty  = PbConfig empty empty mempty mempty empty
-  x `mappend` y = PbConfig
+instance Semigroup (PbConfig k) where
+  x <> y = PbConfig
     { pbcTempDir        = pbcTempDir x       <|> pbcTempDir y
     , pbcNameTemplate   = pbcNameTemplate x  <|> pbcNameTemplate y
     , pbcPreserveCorpse = pbcPreserveCorpse x <> pbcPreserveCorpse y
     , pbcMoveByRenaming = pbcMoveByRenaming x <> pbcMoveByRenaming y
     , pbcAlreadyExists  = pbcAlreadyExists x <|> pbcAlreadyExists y }
+
+instance Monoid (PbConfig k) where
+  mempty  = PbConfig empty empty mempty mempty empty
+  mappend = (<>)
 
 -- | The type class is for the data types that include information
 -- specifying how to create temporary files and directories and whether to

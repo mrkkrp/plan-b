@@ -26,6 +26,8 @@ library
                     , path         >= 0.5   && < 0.6
                     , path-io      >= 1.0.1 && < 2.0
                     , transformers >= 0.3   && < 0.6
+  if !impl(ghc >= 8.0)
+    build-depends:    semigroups   == 0.18.*
   exposed-modules:    System.PlanB
                     , System.PlanB.Type
   if flag(dev)
