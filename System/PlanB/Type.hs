@@ -27,8 +27,8 @@ import Control.Applicative
 import Data.Monoid
 import Path
 
--- | We use this as named kind with two promoted constructors. The
--- constructors are used as phantom types to index 'PbConfig'.
+-- | We use this as a kind with two promoted constructors. The constructors
+-- are used as phantom types to index 'PbConfig'.
 
 data Subject = New | Existing
 
@@ -66,19 +66,19 @@ instance Monoid (PbConfig k) where
     , pbcMoveByRenaming = pbcMoveByRenaming x <> pbcMoveByRenaming y
     , pbcAlreadyExists  = pbcAlreadyExists x <|> pbcAlreadyExists y }
 
--- | The type class is for data types that include information specifying
--- how to create temporary files and directories and whether to delete them
--- automatically or not.
+-- | The type class is for the data types that include information
+-- specifying how to create temporary files and directories and whether to
+-- delete them automatically or not.
 
 class HasTemp c where
 
-  -- | Specifies name of temporary directory to use. Default is the system
+  -- | Specify name of temporary directory to use. The default is the system
   -- temporary directory. If the directory does not exist, it will be
-  -- created, but not deleted.
+  -- created, but won't be deleted.
 
   tempDir :: Path Abs Dir -> c
 
-  -- | Specify template to use to name temporary directory, see
+  -- | Specify the template string to use to name temporary directory, see
   -- 'System.Directory.openTempFile', default is @\"plan-b\"@.
 
   nameTemplate :: String -> c

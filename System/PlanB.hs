@@ -67,7 +67,7 @@ withNewFile pbc fpath action = withTempDir pbc $ \tdir -> do
 
 -- | Edit an existing file. Name of the file is taken as the second
 -- argument. The third argument allows to perform actions on temporary copy
--- of specified file.
+-- of the specified file.
 --
 -- This action throws 'doesNotExistErrorType' exception if target file does
 -- not exist.
@@ -124,8 +124,8 @@ withExistingDir pbc dpath action = withTempDir pbc $ \tdir -> do
 -- | Create a new container file. This is suitable for processing of all
 -- sorts of archive-like objects. The first and second arguments specify how
 -- to unpack directory from file and pack it back. The fourth argument names
--- new file. The fifth argument allows to perform actions knowing name of
--- temporary directory.
+-- the new file. The fifth argument allows to perform actions knowing name
+-- of temporary directory.
 --
 -- This action throws 'alreadyExistsErrorType' by default instead of
 -- silently overwriting already existing file, use 'overrideIfExists' and
@@ -175,7 +175,7 @@ withExistingContainer unpack pack pbc fpath action =
 ----------------------------------------------------------------------------
 -- Helpers
 
--- | Use a temporary directory. This action is controlled by supplied
+-- | Use a temporary directory. This action is controlled by the supplied
 -- configuration, see 'HasTemp'. The temporary directory is removed
 -- automatically when given action finishes, although this can be changed
 -- via the mentioned configuration value too. If given action finishes
@@ -206,12 +206,12 @@ constructFilePath
   -> Path Abs File     -- ^ Resulting path
 constructFilePath dir file = dir </> filename file
 
--- | Check existence of file and perform actions according to given
--- configuration. By default we throw 'alreadyExistsErrorType' unless user
--- has specified different 'AlreadyExistsBehavior'. If it's 'AebOverride',
--- then we don't need to do anything, file will be overwritten
--- automatically, if we have 'AebUse', then we should copy it into given
--- directory.
+-- | Check existence of file and perform actions according to the given
+-- configuration. By default we throw 'alreadyExistsErrorType' unless the
+-- user has specified different 'AlreadyExistsBehavior'. If it's
+-- 'AebOverride', then we don't need to do anything, file will be
+-- overwritten automatically, if we have 'AebUse', then we should copy it
+-- into given directory.
 
 checkExistenceOfFile :: (CanHandleExisting c, MonadIO m)
   => c                 -- ^ Configuration
@@ -229,7 +229,7 @@ checkExistenceOfFile pbc apath fpath = liftIO $ do
       Just AebOverride -> return ()
       Just AebUse -> copyFile fpath apath
 
--- | Check existence of directory and perform actions according to given
+-- | Check existence of directory and perform actions according to the given
 -- configuration. See 'checkExistenceOfFile', overall behavior is the same.
 
 checkExistenceOfDir :: (CanHandleExisting c, MonadIO m)
@@ -248,8 +248,8 @@ checkExistenceOfDir pbc apath dpath = liftIO $ do
       Just AebOverride -> return ()
       Just AebUse -> copyDir dpath apath
 
--- | Move specified file to another location. File can be moved either by
--- copying or by renaming, exact method is determined by supplied
+-- | Move a specified file to another location. File can be moved either by
+-- copying or by renaming, exact method is determined by the supplied
 -- configuration.
 
 moveFile :: (HasTemp c, MonadIO m)
@@ -259,10 +259,10 @@ moveFile :: (HasTemp c, MonadIO m)
   -> m ()
 moveFile pbc = bool P.copyFile P.renameFile (getMoveByRenaming pbc)
 
--- | Move specified directory to another location. If destination location
+-- | Move a specified directory to another location. If destination location
 -- is already occupied, delete that object first. Directory can be moved
--- either by copying or by renaming, exact method is determined by supplied
--- configuration.
+-- either by copying or by renaming, exact method is determined by the
+-- supplied configuration.
 
 moveDir :: (HasTemp c, MonadIO m, MonadCatch m)
   => c                 -- ^ Configuration
@@ -307,7 +307,7 @@ copyDir src dest = do
      else throwM $
        mkIOError doesNotExistErrorType location Nothing (Just fsrc)
 
--- | Perform specified action ignoring IO exceptions it may throw.
+-- | Perform an action ignoring IO exceptions it may throw.
 
 ignoringIOErrors :: MonadCatch m => m () -> m ()
 ignoringIOErrors ioe = ioe `catch` handler

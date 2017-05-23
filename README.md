@@ -23,13 +23,13 @@ of a directory inside it. Consequently, we have six functions available:
 * `withNewContainer`
 * `withExistingContainer`
 
-You specify name of object to edit or create, options (more on them below),
-and an action that gets a `Path` argument with the same type as object you
-intend to edit (we use type-safe file paths
+You specify name of an object to edit or create, options (more on them
+below), and an action that gets a `Path` argument with the same type as
+object you intend to edit (we use type-safe file paths
 from [`path`](https://hackage.haskell.org/package/path) package here to
 prevent a certain class of potential bugs). Then, having that path, you can
 perform all actions you want to and if at some point during this editing an
-exception is thrown, state of file system is rolled back — you get no
+exception is thrown, state of file system is rolled back—you get no
 corrupted files, half-way edited directories, everything is intact as if
 nothing happened at all. If, however, the action is executed successfully
 (i.e. no exceptions thrown), all your manipulations are reflected in the
@@ -48,7 +48,7 @@ Collection of options is a monoid. `mempty` corresponds to the default
 behavior, while non-standard behavioral deviations can be `mappend`ed to it.
 
 By default, when we want to create a new object and it already exists, we
-get an exception, two alternative options exist (only work when you create
+get an exception, two alternative options exist (only work when you create a
 new object):
 
 * `overrideIfExist`
@@ -60,20 +60,22 @@ does not exist, though.
 All functions make use of temporary directories. You can control certain
 aspects of this business:
 
-* `tempDir dir` — will tell the library to create temporary directories and
-  files inside `dir`. By default system's standard temporary directory (e.g.
+* `tempDir dir`—tells the library to create temporary directories and files
+  inside `dir`. By default system's standard temporary directory (e.g.
   `/tmp/` on Unix-like systems) is used.
 
-* `nameTemplate template` — specifies template to use for generation of
-  unique file and directory names. By default `"plan-b"` is used.
+* `nameTemplate template`—specifies template to use for generation of unique
+  file and directory names. By default `"plan-b"` is used.
 
-* `preserveCorpse` — if you add this to options, in case of failure
+* `preserveCorpse`—if you add this to options, in case of failure
   (exception), temporary directory is not automatically deleted and can be
   inspected. However, if operation succeeds, temporary directory is *always*
   deleted.
 
-* `moveByRenaming` — by default files and directories are moved by copying,
-  this option enables moving by renaming.
+* `moveByRenaming`—by default files and directories are moved by copying,
+  this option enables moving by renaming. If you also specify `tempDir` that
+  is on the same disk/partition as the final file you're generating, this
+  may speed up things considerably.
 
 That should be enough for a quick intro, for more information regarding
 concrete functions, consult Haddocks.
