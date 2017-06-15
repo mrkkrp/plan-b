@@ -347,7 +347,11 @@ detectDir mcont dir = do
       unless exists . expectationFailure $
         "target dir does not exist, but it should"
       (dirs, files) <- P.listDirRecur dir
+#if MIN_VERSION_path(0,6,0)
+      files' <- mapM (P.canonicalizePath >=> stripProperPrefix dir) files
+#else
       files' <- mapM (P.canonicalizePath >=> stripDir dir) files
+#endif
       unless (null dirs && null (cont \\ files')) . expectationFailure $
         "contents of target directory are incorrect:\n" ++
         unlines (show <$> files')
@@ -379,14 +383,19 @@ getFileCont = readFile . toFilePath
 -- | Get contents of directory, only files and they are sorted.
 
 getDirCont :: Path Abs Dir -> IO [Path Rel File]
-getDirCont dir = sort <$> (P.listDir dir >>= mapM (stripDir dir) . snd)
+getDirCont dir = sort <$>
+#if MIN_VERSION_path(0,6,0)
+  (P.listDir dir >>= mapM (stripProperPrefix dir) . snd)
+#else
+  (P.listDir dir >>= mapM (stripDir dir) . snd)
+#endif
 
--- | “Edit” file — overwrite it with new content.
+-- | “Edit” file—overwrite it with new content.
 
 pncFile :: Path Abs File -> IO ()
 pncFile file = writeFile (toFilePath file) newFileCont
 
--- | “Edit” directory — write/overwrite it with new content. This is done by
+-- | “Edit” directory—write/overwrite it with new content. This is done by
 -- deletion of files listed in 'oldDirCont' and creation of files listed in
 -- 'newDirCont'.
 
